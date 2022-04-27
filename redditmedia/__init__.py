@@ -1,5 +1,5 @@
 import praw
-from typing import List, Iterable
+from typing import Any, Dict, List, Iterable, Optional, Sequence, Tuple
 from enum import Enum, auto
 from dataclasses import dataclass
 
@@ -44,18 +44,18 @@ def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:
     return media
 
 
-def run(reddit: praw.Reddit, submission_ids: Iterable[str], path: str = './reddit-media-downloads', separate: bool = False):
+def download(submissions: Iterable[praw.reddit.Submission], path: str = None, separate: bool = False):
     """ Downloads all media files of given submission into given folder path """
-    pass
+    path = path or './reddit-media-downloads'  # Default path value
 
 
-if __name__ == '__main__':
+def get_args(manual_args: Optional[Sequence[str]] = None) -> Tuple[Dict[str, str], Optional[List[str]], Dict[str, Any]]:
     import argparse
 
-    # Getting arguments
+    # Parsing command-line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-c", "--Credidentials", help="Client ID, Client Secret, Username and Password for Reddit API", nargs='4')
+        "-c", "--Credidentials", help="Client ID, Client Secret, Username and Password for Reddit API", nargs=4, required=True)
     parser.add_argument(
         "-s", "--Submissions", help="Submissions IDs to download", nargs='+', required=False)
     parser.add_argument(
@@ -63,26 +63,35 @@ if __name__ == '__main__':
     parser.add_argument(
         "-e", "--Each", help="Download media to separate folders for each submission", action='store_true')
 
-    args = parser.parse_args()
+    parsed = parser.parse_args(args=manual_args)
 
-    # Authenticating into Reddit API
-    client_id, client_secret, username, password = args.Credidentials
-
-    reddit = praw.Reddit(
-        client_id=client_id,
-        client_secret=client_secret,
-        username=username,
-        password=password,
-        user_agent="Script/0.0.1",
+    # Setting credidentials
+    credidentials = dict(
+        client_id=parsed.Credidentials[0],
+        client_secret=parsed.Credidentials[1],
+        username=parsed.Credidentials[2],
+        password=parsed.Credidentials[3],
     )
 
-    # Getting submissions list
-    submissions = args.Submissions
+    # Setting positional arguments
+    submissions = parsed.Submissions or None
 
-    if not submissions:
-        subreddit = reddit.subreddit("axolotls")
-        submissions = subreddit.hot(limit=5)
+    # Setting keyword arguments
+    kwargs = {}
 
-    # Runs downloading
-    kwargs = dict(path=args.Path) if args.Path else {}
-    run(reddit, submissions, **kwargs, separate=args.e)  # TODO: Add progress bar
+    if parsed.Path:
+        kwargs['path'] = parsed.Path
+    kwargs['separate'] = parsed.Each
+
+    return credidentials, submissions, kwargs
+
+
+if __name__ == '__main__':
+    credidentials, submission_ids, kwargs = get_args()
+    reddit = praw.Reddit(**credidentials, user_agent="Script/0.0.1")
+
+    if submission_ids is None:
+        submission_ids = reddit.subreddit('axolotls').hot(limit=5)
+    submissions = [reddit.submission(x) for x in submission_ids]
+
+    download(submissions, **kwargs)  # TODO: Add progress bar
