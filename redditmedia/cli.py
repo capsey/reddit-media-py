@@ -1,5 +1,6 @@
 import praw  # type: ignore
 import argparse
+import os
 from redditmedia import download
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -9,7 +10,7 @@ def get_args(manual_args: Optional[Sequence[str]] = None) -> Tuple[Dict[str, str
     # Parsing command-line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-c", "--Credidentials", help="Client ID, Client Secret, Username and Password for Reddit API", nargs=4, required=True)
+        "-c", "--Credidentials", help="Client ID, Client Secret, Username and Password for Reddit API", nargs=4, required=False)
     parser.add_argument(
         "-s", "--Submissions", help="Submissions IDs to download", nargs='+', required=False)
     parser.add_argument(
@@ -20,12 +21,20 @@ def get_args(manual_args: Optional[Sequence[str]] = None) -> Tuple[Dict[str, str
     parsed = parser.parse_args(args=manual_args)
 
     # Setting credidentials
-    credidentials = dict(
-        client_id=parsed.Credidentials[0],
-        client_secret=parsed.Credidentials[1],
-        username=parsed.Credidentials[2],
-        password=parsed.Credidentials[3],
-    )
+    if parsed.Credidentials:
+        credidentials = dict(
+            client_id=parsed.Credidentials[0],
+            client_secret=parsed.Credidentials[1],
+            username=parsed.Credidentials[2],
+            password=parsed.Credidentials[3],
+        )
+    else:
+        credidentials = dict(
+            client_id=os.environ['REDDIT_CLIENT_ID'],
+            client_secret=os.environ['REDDIT_CLIENT_SECRET'],
+            username=os.environ['REDDIT_USERNAME'],
+            password=os.environ['REDDIT_PASSWORD'],
+        )
 
     # Setting positional arguments
     submissions = parsed.Submissions or None
