@@ -1,3 +1,4 @@
+import os
 import pytest
 import praw
 
@@ -5,10 +6,10 @@ import praw
 @pytest.fixture(scope='session')
 def reddit():
     reddit = praw.Reddit(
-        client_id="client_id",
-        client_secret="client_secret",
-        username="username",
-        password="password",
+        client_id=os.environ['REDDIT_CLIENT_ID']",
+        client_secret=os.environ['REDDIT_CLIENT_SECRET'],
+        username=os.environ['REDDIT_USERNAME'],
+        password=os.environ['REDDIT_PASSWORD'],
         user_agent="Script/0.0.1",
     )
     return reddit
