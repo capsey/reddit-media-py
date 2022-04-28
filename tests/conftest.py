@@ -1,6 +1,6 @@
 import os
 import pytest
-import praw
+import praw  # type: ignore
 
 
 @pytest.fixture(scope='session')

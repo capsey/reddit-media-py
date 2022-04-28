@@ -1,7 +1,6 @@
-import argparse
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import pytest
-import praw
+import praw  # type: ignore
 from redditmedia import MediaType, SubmissionMedia, get_media, get_args
 
 

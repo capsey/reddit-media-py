@@ -1,4 +1,4 @@
-import praw
+import praw  # type: ignore
 from typing import Any, Dict, List, Iterable, Optional, Sequence, Tuple
 from enum import Enum, auto
 from dataclasses import dataclass
