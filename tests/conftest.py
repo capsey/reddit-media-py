@@ -10,6 +10,6 @@ def reddit():
         client_secret=os.environ['REDDIT_CLIENT_SECRET'],
         username=os.environ['REDDIT_USERNAME'],
         password=os.environ['REDDIT_PASSWORD'],
-        user_agent="Script/0.0.1",
+        user_agent='Script/0.0.1',
     )
     return reddit

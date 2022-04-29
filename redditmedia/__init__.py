@@ -64,7 +64,7 @@ def download(submissions: Iterable[praw.reddit.Submission], path: str = None, se
 
             # File path
             folder = f'{path}/{id}' if separate else path
-            file = i if separate else f'{id}-{i}'
+            file = i if separate else f'{id}_{i}'
 
             if not os.path.exists(folder):
                 os.makedirs(folder)
