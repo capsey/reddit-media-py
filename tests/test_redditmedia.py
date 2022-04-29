@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import List
 import pytest
 import praw  # type: ignore
 from redditmedia import MediaType, SubmissionMedia, get_media

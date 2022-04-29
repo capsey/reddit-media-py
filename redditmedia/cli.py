@@ -3,6 +3,7 @@ import argparse
 import os
 from redditmedia import download
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+from tqdm import tqdm
 
 
 description = '''
@@ -67,4 +68,5 @@ def main() -> None:
         submission_ids = reddit.subreddit('axolotls').hot(limit=5)
     submissions = [reddit.submission(x) for x in submission_ids]
 
-    download(submissions, **kwargs)  # TODO: Add progress bar
+    progressbar = tqdm(submissions, desc='Downloading...', colour='green', ascii=True)
+    download(progressbar, **kwargs)
