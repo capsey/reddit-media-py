@@ -10,6 +10,7 @@ class MediaType(Enum):
     """ Enum of type of media of Reddit submission """
     jpg = auto()
     png = auto()
+    gif = auto()
     mp4 = auto()
 
 
@@ -20,7 +21,7 @@ class SubmissionMedia:
     type: MediaType
 
 
-def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:  # TODO: Add support of reposts
+def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:
     """ Returns list of media URLs of the submission and its MediaType """
     media = []
 

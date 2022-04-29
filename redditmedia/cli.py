@@ -3,7 +3,7 @@ import argparse
 import os
 from redditmedia import download
 from typing import Any, Dict, List, Optional, Sequence, Tuple
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 
 description = '''
