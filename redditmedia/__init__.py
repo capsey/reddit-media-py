@@ -6,6 +6,9 @@ from enum import Enum, auto
 from dataclasses import dataclass
 
 
+__version__ = '0.0.2'
+
+
 class MediaType(Enum):
     """ Enum of type of media of Reddit submission """
     jpg = auto()

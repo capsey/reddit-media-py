@@ -1,7 +1,6 @@
 import praw  # type: ignore
 import argparse
-import os
-from redditmedia import download
+from redditmedia import download, __version__
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 from tqdm import tqdm  # type: ignore
 
@@ -37,8 +36,6 @@ def get_args(manual_args: Optional[Sequence[str]] = None) -> Tuple[Dict[str, str
     else:
         credentials['site_name'] = 'redditmedia'
 
-    credentials['user_agent'] = 'Script/0.0.1',
-
     # Setting positional arguments
     submissions = parsed.ids or None
 
@@ -54,7 +51,7 @@ def get_args(manual_args: Optional[Sequence[str]] = None) -> Tuple[Dict[str, str
 def main() -> None:
     """ Entrypoint of standalone CLI app """
     credentials, submission_ids, kwargs = get_args()
-    reddit = praw.Reddit(**credentials, user_agent='Script/0.0.1')
+    reddit = praw.Reddit(**credentials, user_agent=f'Script/{__version__}')
 
     if submission_ids is None:
         submission_ids = reddit.subreddit('axolotls').hot(limit=5)
