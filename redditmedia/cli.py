@@ -22,30 +22,22 @@ def get_args(manual_args: Optional[Sequence[str]] = None) -> Tuple[Dict[str, str
     parser.add_argument(
         '-s', '--separate', help='download media to separate folders for each submission', action='store_true')
     parser.add_argument(
-        '-c', '--credentials', help='use specified credentials for Reddit API instead', action='store_true')
+        '-c', '--credentials', help='explicitly pass Reddit API credentials', nargs=2)
     parser.add_argument(
         'ids', help='IDs of submissions to download media from', nargs='+')
 
     parsed = parser.parse_args(args=manual_args)
 
     # Setting credentials
+    credentials = {}
+
     if parsed.credentials:
-        credentials = dict(
-            client_id=input('- Reddit API Client ID:     '),
-            client_secret=input('- Reddit API Client Secret: '),
-            username=input('- Reddit API Username:      '),
-            password=input('- Reddit API Password:      '),
-        )
+        credentials['client_id'] = parsed.credentials[0]
+        credentials['client_secret'] = parsed.credentials[1]
     else:
-        try:
-            credentials = dict(
-                client_id=os.environ['REDDIT_CLIENT_ID'],
-                client_secret=os.environ['REDDIT_CLIENT_SECRET'],
-                username=os.environ['REDDIT_USERNAME'],
-                password=os.environ['REDDIT_PASSWORD'],
-            )
-        except KeyError as e:
-            raise Exception('Credentials are not set into environment variables') from e
+        credentials['site_name'] = 'redditmedia'
+
+    credentials['user_agent'] = 'Script/0.0.1',
 
     # Setting positional arguments
     submissions = parsed.ids or None
