@@ -1,22 +1,22 @@
 # Reddit Media Getter
 
 ![Tests passing Badge](https://github.com/capsey/reddit-media-py/actions/workflows/tests.yml/badge.svg)
-![Supported Python versions Badge](https://img.shields.io/pypi/pyversions/reddit-media)
-![PyPI package version Badge](https://img.shields.io/pypi/v/reddit-media)
+[![Supported Python versions Badge](https://img.shields.io/pypi/pyversions/reddit-media)](https://pypi.org/project/reddit-media/)
+[![PyPI package version Badge](https://img.shields.io/pypi/v/reddit-media)](https://pypi.org/project/reddit-media/)
 
-Fetches media URLs from Reddit Submission using Python PRAW library and optionally downloads it. Supports video and single or gallery images. Can be used both as standalone package and library for Python scripts.
+Gets media file URLs from Reddit Submissions using [PRAW](https://github.com/praw-dev/praw) library and optionally downloads it. Supports video and single or gallery images. Can be used both as standalone package and library for Python scripts.
 
 ## How to install
 
-To use this package, you first have to [install Python 3.7](https://www.python.org/downloads/) or higher (versions below 3.7 are not supported). Then open your terminal and type following command to install the package from PyPI repository:
+To use this package, you first have to [install Python 3.7 or higher](https://www.python.org/downloads/) (versions below are not supported). Then open your terminal and type following command to install the latest version of the package from PyPI repository:
 
-```console
+```
 pip install reddit-media
 ```
 
-This package uses Reddit API (using [PRAW](https://github.com/praw-dev/praw) library) to fetch data from Reddit. However, Reddit API requires authentication for scripts that use it, so you will have to do some configuration beforehand. Specifically, it requires app Client ID and Client Secret. You can create both very easily:
+This package uses PRAW library that utilizes Reddit API to fetch data from Reddit. However, Reddit API requires authentication for scripts that use it, so you will have to do some configuration beforehand. Specifically, it requires app Client ID and Client Secret. You can create both very easily following next steps:
 
-- Follow following page: https://reddit.com/prefs/apps
+- Open this page: https://reddit.com/prefs/apps
 - If you are not logged in into your Reddit account, you will be prompted to do so
 - You will see 'authorized applications' page
 - Scroll to the very bottom and press 'create another app...' button
@@ -49,13 +49,13 @@ for media_list in submissions_media:
 
 ## Using as standalone program
 
-If you want to download bunch of media files from some reddit submissions, you can do this by using this package as standalone CLI program. You can do that typing something like this into terminal:
+If you want to download bunch of media files from some reddit submissions into your local storage, you can do this by using this package as standalone CLI program. You can do that typing something like this into terminal:
 
 ```console
 python -m redditmedia [IDS OF SUBMISSIONS SEPARATED WITH SPACE] -c [Client ID] [Client Secret]
 ```
 
-This will download all media files from specified submissions into `reddit-media-downloads` folder in current working directory. If you wish to change path of the folder where media should be downloaded to, you can specify it adding `-p [PATH TO FOLDER]` at the end of the command above, or if you want submissions to have separate folders with their files, you can add `-s` flag at the end of the command.
+This will download all media files from specified submissions into `reddit-media-downloads` folder in current working directory. If you wish to change path of the folder where media should be downloaded to, you can specify it by adding `-p [PATH TO FOLDER]` option at the end of the command above, or if you wish to have media files in separate folders depending on the submission they are from, you can do that by adding `-s` flag at the end of the command.
 
 As you can see, this requires you to explicitly provide credentials as arguments every time you run the program. This is inconvenient if you use the program often. Instead you can create `praw.ini` file inside your current working directory and paste this:
 
@@ -71,11 +71,11 @@ Now you can just provide IDs of submissions, and credidentials will be automatic
 python -m redditmedia [IDS OF SUBMISSIONS SEPARATED WITH SPACE]
 ```
 
-> You can do more things using this file, which are outside of the topic of this page. For details about `praw.ini` file, check out this page: [praw.ini Files](https://praw.readthedocs.io/en/stable/getting_started/configuration/prawini.html)
+> You can do more things using this file, which is outside of the topic of this page. For details about `praw.ini` file, check out this page: [praw.ini Files](https://praw.readthedocs.io/en/stable/getting_started/configuration/prawini.html)
 
 ## Upcoming features
 
 - [ ] Loading submissions from a file
-- [ ] Easier credentials entering
+- [x] Easier credentials entering
 - [ ] Add file size limit
 - [ ] Save URLs into file
