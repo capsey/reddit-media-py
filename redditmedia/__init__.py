@@ -53,6 +53,7 @@ def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:
 
 def download(submissions: Iterable[praw.reddit.Submission], path: str = None, separate: bool = False) -> None:
     """ Downloads all media files of given submission into given folder path """
+    
     path = path or './reddit-media-downloads'  # Default path value
     submissions_media = [(get_media(x), x.id) for x in submissions]
 
