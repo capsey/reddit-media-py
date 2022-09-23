@@ -1,10 +1,12 @@
-from typing import List
 import pytest
-import praw  # type: ignore
+from praw import Reddit  # type: ignore
 from redditmedia import MediaType, SubmissionMedia, get_media
+from redditmedia.cli import main
+from click.testing import CliRunner
+from typing import List
 
 
-@pytest.mark.parametrize('id, expected', [
+test_cases = [
     ('xkztsb', []),
     ('vphwx7', [SubmissionMedia('https://v.redd.it/gk0cnafxk2991/DASH_720.mp4?source=fallback', MediaType.mp4)]),
     ('xi0mkn', [SubmissionMedia('https://i.redd.it/7wixq0lg0so91.jpg', MediaType.jpg)]),
@@ -18,8 +20,22 @@ from redditmedia import MediaType, SubmissionMedia, get_media
         SubmissionMedia('https://i.redd.it/c87gbof3rdf91.jpg', MediaType.jpg),
         SubmissionMedia('https://i.redd.it/6cibmjf3rdf91.jpg', MediaType.jpg),
     ]),
-])
-def test_get_media(reddit: praw.Reddit, id: str, expected: List[SubmissionMedia]):
+]
+
+
+@pytest.mark.parametrize('id, expected', test_cases)
+def test_get_media(reddit: Reddit, id: str, expected: List[SubmissionMedia]):
     """ Tests that `get_media` function returns correct output """
+
     submission = reddit.submission(id=id)
     assert get_media(submission) == expected
+
+
+@pytest.mark.parametrize('id, expected', test_cases)
+def test_cli_get(id: str, expected: List[SubmissionMedia]):
+    """ Tests that CLI `get` command returns correct output """
+
+    runner = CliRunner()
+    result = runner.invoke(main, ['-o', 'get', id])
+    assert result.exit_code == 0
+    assert result.output == ''.join(x.uri + '\n' for x in expected)

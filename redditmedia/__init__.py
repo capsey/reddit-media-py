@@ -1,7 +1,7 @@
 import os
 import praw  # type: ignore
 import requests
-from typing import List, Iterable
+from typing import List
 from enum import Enum, auto
 from dataclasses import dataclass
 
@@ -11,6 +11,7 @@ __version__ = '0.0.2'
 
 class MediaType(Enum):
     """ Enum of type of media of Reddit submission """
+
     jpg = auto()
     png = auto()
     gif = auto()
@@ -20,12 +21,20 @@ class MediaType(Enum):
 @dataclass
 class SubmissionMedia:
     """ Container class for submission media """
+
     uri: str
     type: MediaType
 
 
+def get_reddit(**kwargs: dict) -> praw.Reddit:
+    """ Returns Reddit instance """
+
+    return praw.Reddit(**kwargs, site_name='redditmedia', user_agent='redditmedia v' + __version__)
+
+
 def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:
     """ Returns list of media URLs of the submission and its MediaType """
+
     media = []
 
     if submission.is_video:
@@ -51,29 +60,25 @@ def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:
     return media
 
 
-def download(submissions: Iterable[praw.reddit.Submission], path: str = None, separate: bool = False) -> None:
+def download(submission_media: List[SubmissionMedia], id: str, path: str, separate: bool = False) -> None:
     """ Downloads all media files of given submission into given folder path """
 
-    path = path or './reddit-media-downloads'  # Default path value
-    submissions_media = [(get_media(x), x.id) for x in submissions]
+    for i, media in enumerate(submission_media):
+        # Requests media data
+        response = requests.get(media.uri)
 
-    for submission_media, id in submissions_media:
-        for i, media in enumerate(submission_media):
-            # Requests media data
-            response = requests.get(media.uri)
+        if not response.ok:
+            raise Exception(response)
 
-            if not response.ok:
-                raise Exception(response)
+        img_data = response.content
 
-            img_data = response.content
+        # File path
+        folder = f'{path}/{id}' if separate else path
+        file = i if separate else f'{id}_{i}'
 
-            # File path
-            folder = f'{path}/{id}' if separate else path
-            file = i if separate else f'{id}_{i}'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-
-            # Writing into file
-            with open(f'{folder}/{file}.{media.type.name}', 'wb') as handler:
-                handler.write(img_data)
+        # Writing into file
+        with open(f'{folder}/{file}.{media.type.name}', 'wb') as handler:
+            handler.write(img_data)
