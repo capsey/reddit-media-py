@@ -1,7 +1,8 @@
-import os
-import praw  # type: ignore
-import requests
 from typing import List
+from asyncpraw import Reddit  # type: ignore
+from asyncpraw.reddit import Submission  # type: ignore
+import os
+import requests
 from enum import Enum, auto
 from dataclasses import dataclass
 
@@ -26,13 +27,13 @@ class SubmissionMedia:
     type: MediaType
 
 
-def get_reddit(**kwargs: dict) -> praw.Reddit:
+def get_reddit(**kwargs: dict) -> Reddit:
     """ Returns Reddit instance """
 
-    return praw.Reddit(**kwargs, site_name='redditmedia', user_agent='redditmedia v' + __version__)
+    return Reddit(**kwargs, site_name='redditmedia', user_agent='redditmedia v' + __version__)
 
 
-def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:
+def get_media(submission: Submission) -> List[SubmissionMedia]:
     """ Returns list of media URLs of the submission and its MediaType """
 
     media = []
@@ -60,7 +61,7 @@ def get_media(submission: praw.reddit.Submission) -> List[SubmissionMedia]:
     return media
 
 
-def download(submission_media: List[SubmissionMedia], id: str, path: str, separate: bool = False) -> None:
+async def download_async(submission_media: List[SubmissionMedia], id: str, path: str, separate: bool = False) -> None:
     """ Downloads all media files of given submission into given folder path """
 
     for i, media in enumerate(submission_media):

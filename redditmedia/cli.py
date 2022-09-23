@@ -1,8 +1,9 @@
+import asyncio
 import click
-from click import Context, Choice, progressbar
-from praw.reddit import Submission  # type: ignore
-from redditmedia import get_reddit, get_media, download
-from typing import Iterable, Tuple
+from asyncpraw.reddit import Submission
+from click import Context, Choice
+from typing import Callable, Tuple
+from . import get_reddit, get_media
 
 
 @click.group()
@@ -30,7 +31,7 @@ def main(ctx: Context, output: bool, separate: bool, path: str, credentials: Tup
         obj['credentials']['client_id'] = credentials[0]
         obj['credentials']['client_secret'] = credentials[1]
 
-    obj['reddit'] = get_reddit(**obj['credentials'])
+    click.echo('Connecting to Reddit API...')
 
 
 @main.command()
@@ -39,8 +40,18 @@ def main(ctx: Context, output: bool, separate: bool, path: str, credentials: Tup
 def get(obj: dict, submission_ids: Tuple[str]):
     """ Download media from specified submissions """
 
-    submissions = (obj['reddit'].submission(x) for x in submission_ids)
-    process(submissions, len(submission_ids), obj['output'], obj['path'], obj['separate'])
+    async def fetch_submission(id, reddit):
+        submission = await reddit.submission(id)
+        await process_submission(submission, obj['output'])
+
+    async def fetch_submissions():
+        reddit = get_reddit(**obj['credentials'])
+        try:
+            await asyncio.gather(*(fetch_submission(x, reddit) for x in submission_ids))
+        finally:
+            await reddit.close()
+
+    asyncio.run(fetch_submissions())
 
 
 @main.command()
@@ -53,8 +64,7 @@ def hot(obj: dict, subreddit: str, limit: int):
     if subreddit.startswith('r/'):
         subreddit = subreddit[2:]
 
-    submissions = obj['reddit'].subreddit(subreddit).hot(limit=limit)
-    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+    asyncio.run(fetch_subreddit(subreddit, lambda x: x.hot(limit=limit), obj['credentials'], obj['output']))
 
 
 @main.command()
@@ -67,8 +77,7 @@ def new(obj: dict, subreddit: str, limit: int):
     if subreddit.startswith('r/'):
         subreddit = subreddit[2:]
 
-    submissions = obj['reddit'].subreddit(subreddit).hot(limit=limit)
-    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+    asyncio.run(fetch_subreddit(subreddit, lambda x: x.new(limit=limit), obj['credentials'], obj['output']))
 
 
 time_filters = ['all', 'day', 'hour', 'month', 'week', 'year']
@@ -85,18 +94,26 @@ def top(obj: dict, subreddit: str, limit: int, time_filter: str):
     if subreddit.startswith('r/'):
         subreddit = subreddit[2:]
 
-    submissions = obj['reddit'].subreddit(subreddit).top(limit=limit, time_filter=time_filter)
-    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+    asyncio.run(fetch_subreddit(subreddit, lambda x: x.top(limit=limit, time_filter=time_filter), obj['credentials'], obj['output']))
 
 
-def process(submissions: Iterable[Submission], length: int, output: bool, path: str, separate: bool):
-    """ Downloads or prints media files of given submissions """
+async def fetch_subreddit(subreddit: str, getter: Callable, credentials: dict, output: bool):
+    reddit = get_reddit(**credentials)
 
+    try:
+        coroutines = []
+
+        async for submission in getter(await reddit.subreddit(subreddit)):
+            coroutines.append(process_submission(submission, output))
+
+        await asyncio.gather(*coroutines)
+    finally:
+        await reddit.close()
+
+
+async def process_submission(submission: Submission, output: bool):
     if not output:
-        with progressbar(submissions, label='Downloading...', length=length) as bar:
-            for submission in bar:
-                download(get_media(submission), submission.id, path, separate)
+        pass
     else:
-        for id in submissions:
-            for media in get_media(id):
-                click.echo(media.uri)
+        for media in get_media(submission):
+            click.echo(media.uri)
