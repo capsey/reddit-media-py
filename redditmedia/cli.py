@@ -1,61 +1,102 @@
-import praw  # type: ignore
-import argparse
-from redditmedia import download, __version__
-from typing import Any, Dict, List, Optional, Sequence, Tuple
-from tqdm import tqdm  # type: ignore
+import click
+from click import Context, Choice, progressbar
+from praw.reddit import Submission  # type: ignore
+from redditmedia import get_reddit, get_media, download
+from typing import Iterable, Tuple
 
 
-description = '''
+@click.group()
+@click.option('--output', '-o', is_flag=True, help='Print media URLs instead of downloading')
+@click.option('--separate', '-s', is_flag=True, help='Download media to separate folders for each submission')
+@click.option('--path', '-p', default='./reddit-media-downloads', help='Path to folder for downloaded media')
+@click.option('--credentials', '-c', type=(str, str), help='Explicitly pass Reddit API credentials')
+@click.pass_context
+def main(ctx: Context, output: bool, separate: bool, path: str, credentials: Tuple[str, str]):
+    """
     Downloads specified reddit submissions media into local folder `reddit-media-downloads`
-    (or specified using --path option). For accessing Reddit API credentials should be provided,
-    for details go to package page: https://github.com/capsey/reddit-media-py
-'''
+    (or specified using --path option). For accessing Reddit API credentials should be provided
+    either via `-c` option, or `praw.ini` file. For details go to package page:
+    https://github.com/capsey/reddit-media-py
+    """
+
+    obj = ctx.obj = {}
+
+    obj['output'] = output
+    obj['separate'] = separate
+    obj['path'] = path.rstrip('\\/')
+    obj['credentials'] = {}
+
+    if credentials:
+        obj['credentials']['client_id'] = credentials[0]
+        obj['credentials']['client_secret'] = credentials[1]
+
+    obj['reddit'] = get_reddit(**obj['credentials'])
 
 
-def get_args(manual_args: Optional[Sequence[str]] = None) -> Tuple[Dict[str, str], Optional[List[str]], Dict[str, Any]]:
-    """ Parses CLI arguments and returns parsed arguments using `argparse` """
-    # Parsing command-line arguments
-    parser = argparse.ArgumentParser(prog='redditmedia', add_help=True, description=description)
-    parser.add_argument(
-        '-p', '--path', help='path to folder for downloaded media')
-    parser.add_argument(
-        '-s', '--separate', help='download media to separate folders for each submission', action='store_true')
-    parser.add_argument(
-        '-c', '--credentials', help='explicitly pass Reddit API credentials', nargs=2)
-    parser.add_argument(
-        'ids', help='IDs of submissions to download media from', nargs='+')
+@main.command()
+@click.argument('submission-ids', type=str, nargs=-1)
+@click.pass_obj
+def get(obj: dict, submission_ids: Tuple[str]):
+    """ Download media from specified submissions """
 
-    parsed = parser.parse_args(args=manual_args)
+    submissions = (obj['reddit'].submission(x) for x in submission_ids)
+    process(submissions, len(submission_ids), obj['output'], obj['path'], obj['separate'])
 
-    # Setting credentials
-    credentials = {}
 
-    if parsed.credentials:
-        credentials['client_id'] = parsed.credentials[0]
-        credentials['client_secret'] = parsed.credentials[1]
+@main.command()
+@click.option('--limit', '-n', default=1, help='Maximum number of submissions to download')
+@click.argument('subreddit', type=str)
+@click.pass_obj
+def hot(obj: dict, subreddit: str, limit: int):
+    """ Download media of hot submissions in specified subreddit """
+
+    if subreddit.startswith('r/'):
+        subreddit = subreddit[2:]
+
+    submissions = obj['reddit'].subreddit(subreddit).hot(limit=limit)
+    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+
+
+@main.command()
+@click.option('--limit', '-n', default=1, help='Maximum number of submissions to download')
+@click.argument('subreddit', type=str)
+@click.pass_obj
+def new(obj: dict, subreddit: str, limit: int):
+    """ Download media of new submissions in specified subreddit """
+
+    if subreddit.startswith('r/'):
+        subreddit = subreddit[2:]
+
+    submissions = obj['reddit'].subreddit(subreddit).hot(limit=limit)
+    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+
+
+time_filters = ['all', 'day', 'hour', 'month', 'week', 'year']
+
+
+@main.command()
+@click.option('--limit', '-n', default=1, help='Maximum number of submissions to download')
+@click.option('--time-filter', '-t', default=time_filters[0], type=Choice(time_filters, case_sensitive=False))
+@click.argument('subreddit', type=str)
+@click.pass_obj
+def top(obj: dict, subreddit: str, limit: int, time_filter: str):
+    """ Download media of top submissions in specified subreddit """
+
+    if subreddit.startswith('r/'):
+        subreddit = subreddit[2:]
+
+    submissions = obj['reddit'].subreddit(subreddit).top(limit=limit, time_filter=time_filter)
+    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+
+
+def process(submissions: Iterable[Submission], length: int, output: bool, path: str, separate: bool):
+    """ Downloads or prints media files of given submissions """
+
+    if not output:
+        with progressbar(submissions, label='Downloading...', length=length) as bar:
+            for submission in bar:
+                download(get_media(submission), submission.id, path, separate)
     else:
-        credentials['site_name'] = 'redditmedia'
-
-    # Setting positional arguments
-    submissions = parsed.ids or None
-
-    # Setting keyword arguments
-    kwargs = {}
-
-    kwargs['path'] = parsed.path
-    kwargs['separate'] = parsed.separate
-
-    return credentials, submissions, kwargs
-
-
-def main() -> None:
-    """ Entrypoint of standalone CLI app """
-    credentials, submission_ids, kwargs = get_args()
-    reddit = praw.Reddit(**credentials, user_agent=f'Script/{__version__}')
-
-    if submission_ids is None:
-        submission_ids = reddit.subreddit('axolotls').hot(limit=5)
-    submissions = [reddit.submission(x) for x in submission_ids]
-
-    progressbar = tqdm(submissions, desc='Downloading...', colour='green', ascii=True)
-    download(progressbar, **kwargs)
+        for id in submissions:
+            for media in get_media(id):
+                click.echo(media.uri)
