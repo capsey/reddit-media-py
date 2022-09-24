@@ -41,4 +41,4 @@ def test_cli_get(id: str, expected: List[SubmissionMedia]):
     runner = CliRunner()
     result = runner.invoke(main, ['-o', 'get', id])
     assert result.exit_code == 0
-    assert result.output == 'Connecting to Reddit API...\n' + ''.join(x.uri + '\n' for x in expected)
+    assert result.output == ''.join(x.uri + '\n' for x in expected)
