@@ -1,6 +1,7 @@
 import os
 import aiofiles
 import asyncio
+from tqdm import tqdm
 from asyncio import Semaphore
 from aiohttp import ClientSession
 from typing import List, Optional
@@ -41,7 +42,7 @@ class SubmissionFile:
     type: MediaType
     size: Optional[int] = None
 
-    async def get_size(self) -> None:
+    async def get_size(self):
         async with ClientSession() as session:
             head = await session.head(self.uri)
             self.type.assert_head(head.content_type)
@@ -105,7 +106,8 @@ async def download_async(
     result: SubmissionResult,
     path: str = './reddit-media-downloads',
     separate: bool = False,
-    task_limit: int = 5
+    task_limit: int = 5,
+    bar: Optional[tqdm] = None
 ) -> None:
     """ Downloads all media files of given submission into given folder path """
 
@@ -124,16 +126,21 @@ async def download_async(
                 file = '%s/%s/%i.%s' % (path, result.id, i, media.type.name)
             else:
                 file = '%s/%s_%i.%s' % (path, result.id, i, media.type.name)
-            cors.append(download_file_async(media, session, file, semaphore))
+            cors.append(download_file_async(media, session, file, semaphore, bar=bar))
 
         await asyncio.gather(*cors)
+
+    # Log on finish
+    if bar is not None:
+        bar.write('Finished for: https://redd.it/%s' % result.id)
 
 
 async def download_file_async(
     file: SubmissionFile,
     session: ClientSession,
     path: str,
-    semaphore: Semaphore
+    semaphore: Semaphore,
+    bar: Optional[tqdm] = None
 ) -> None:
     async with semaphore:
         # GET request
@@ -144,7 +151,13 @@ async def download_file_async(
         elif file.type.assert_head(response.content_type):
             raise Exception('URL leads to file with type that does not match!')
 
+        # Adding file size into progress bar
+        if bar is not None:
+            bar.total += response.content_length
+
         # Writing into file
-        async for img_data in response.content:
-            async with aiofiles.open(path, 'ab') as handler:
+        async with aiofiles.open(path, 'ab') as handler:
+            async for img_data in response.content:
                 await handler.write(img_data)
+                if bar is not None:
+                    bar.update(len(img_data))

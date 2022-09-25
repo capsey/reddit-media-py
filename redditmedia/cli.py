@@ -2,8 +2,9 @@ import asyncio
 import click
 from asyncpraw import Reddit  # type: ignore
 from asyncpraw.reddit import Submission  # type: ignore
+from tqdm import tqdm
 from click import Context, Choice
-from typing import Callable, Tuple
+from typing import Callable, Optional, Tuple
 from dataclasses import dataclass
 from . import get_reddit, get_media, download_async
 
@@ -100,19 +101,20 @@ def top(params: Params, subreddit: str, limit: int, time_filter: str):
 
 async def fetch_subreddit(subreddit: str, getter: Callable, params: Params):
     async with params.get_reddit() as reddit:
-        coroutines = []
+        with tqdm(desc='Downloading...', leave=False, total=0, unit='B', unit_scale=True, unit_divisor=1024) as bar:
+            coroutines = []
 
-        async for submission in getter(await reddit.subreddit(subreddit)):
-            coroutines.append(process_submission(submission, params))
+            async for submission in getter(await reddit.subreddit(subreddit)):
+                coroutines.append(process_submission(submission, params, bar=bar))
 
-        await asyncio.gather(*coroutines)
+            await asyncio.gather(*coroutines)
 
 
-async def process_submission(submission: Submission, params: Params):
+async def process_submission(submission: Submission, params: Params, bar: Optional[tqdm] = None):
     result = get_media(submission)
 
     if not params.output:
-        await download_async(result, params.path, params.separate)
+        await download_async(result, params.path, params.separate, bar=bar)
     else:
         for media in result.media:
             click.echo(media.uri)
