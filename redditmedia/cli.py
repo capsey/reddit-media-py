@@ -4,8 +4,8 @@ from asyncpraw import Reddit  # type: ignore
 from asyncpraw.reddit import Submission  # type: ignore
 from click import Context, Choice
 from typing import Callable, Tuple
-from dataclasses import dataclass, field
-from . import get_reddit, get_media
+from dataclasses import dataclass
+from . import get_reddit, get_media, download_async
 
 
 @dataclass
@@ -13,20 +13,17 @@ class Params:
     output: bool
     separate: bool
     path: str
-    credentials: dict = field(default_factory=dict)
-
-    def set_credentials(self, credentials: Tuple):
-        if credentials:
-            self.credentials['client_id'] = credentials[0]
-            self.credentials['client_secret'] = credentials[1]
+    credentials: Tuple[str, str]
 
     def get_reddit(self) -> Reddit:
-        return get_reddit(**self.credentials)
+        if self.credentials:
+            return get_reddit(client_id=self.credentials[0], client_secret=self.credentials[1])
+        return get_reddit()
 
 
 @click.group()
 @click.option('--output', '-o', is_flag=True, help='Print media URLs instead of downloading')
-@click.option('--separate', '-s', is_flag=True, help='Download media to separate folders for each submission')
+@click.option('--separate', is_flag=True, help='Download media to separate folders for each submission')
 @click.option('--path', '-p', default='./reddit-media-downloads', help='Path to folder for downloaded media')
 @click.option('--credentials', '-c', type=(str, str), help='Explicitly pass Reddit API credentials')
 @click.pass_context
@@ -38,15 +35,7 @@ def main(ctx: Context, output: bool, separate: bool, path: str, credentials: Tup
     https://github.com/capsey/reddit-media-py
     """
 
-    params = ctx.obj = Params(
-        output,
-        separate,
-        path.rstrip('\\/')
-    )
-
-    if credentials:
-        params.credentials['client_id'] = credentials[0]
-        params.credentials['client_secret'] = credentials[1]
+    ctx.obj = Params(output, separate, path.rstrip('\\/'), credentials)
 
 
 @main.command()
@@ -60,11 +49,8 @@ def get(params: Params, submission_ids: Tuple[str]):
         await process_submission(submission, params)
 
     async def fetch_submissions():
-        reddit = params.get_reddit()
-        try:
+        async with params.get_reddit() as reddit:
             await asyncio.gather(*(fetch_submission(x, reddit) for x in submission_ids))
-        finally:
-            await reddit.close()
 
     asyncio.run(fetch_submissions())
 
@@ -113,22 +99,20 @@ def top(params: Params, subreddit: str, limit: int, time_filter: str):
 
 
 async def fetch_subreddit(subreddit: str, getter: Callable, params: Params):
-    reddit = params.get_reddit()
-
-    try:
+    async with params.get_reddit() as reddit:
         coroutines = []
 
         async for submission in getter(await reddit.subreddit(subreddit)):
             coroutines.append(process_submission(submission, params))
 
         await asyncio.gather(*coroutines)
-    finally:
-        await reddit.close()
 
 
 async def process_submission(submission: Submission, params: Params):
+    result = get_media(submission)
+
     if not params.output:
-        pass
+        await download_async(result, params.path, params.separate)
     else:
-        for media in get_media(submission):
+        for media in result.media:
             click.echo(media.uri)
