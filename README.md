@@ -35,14 +35,17 @@ Reddit API requires authentication for scripts that use it, so you will have to 
 If your Python script needs to get URLs of some Reddit submission, but you don't want to do it yourself, you can use this package to do it for you. Once you installed the package, you can just import it and use as any other library:
 
 ```python
+import asyncio
 from redditmedia import get_reddit, get_media, MediaType
 
-reddit = get_reddit(client_id='your-client-id', client_secret='your-client-secret')
+async def main():
+  async with get_reddit(client_id='your-client-id', client_secret='your-client-secret') as reddit:
+    async for submission in reddit.subreddit('cute').hot(limit=10):  # First 10 submissions on r/cute
+      for media in get_media(submission).media:
+        if media.type in [MediaType.jpg, MediaType.png]:  # Print URL only if it's an image
+          print(media.uri)
 
-for media_list in reddit.subreddit('cute').hot(limit=10)  # First 10 submissions on r/cute:
-  for media in get_media(submission):
-    if media.type in [MediaType.jpg, MediaType.png]:  # Print URL only if it's an image
-      print(media.uri)
+asyncio.run(main())
 ```
 
 ## Using as standalone program

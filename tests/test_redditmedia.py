@@ -1,6 +1,7 @@
 import pytest
 from redditmedia import MediaType, SubmissionResult, SubmissionFile, get_reddit, get_media
 from redditmedia.cli import main
+from aiohttp import ClientSession
 from click.testing import CliRunner
 from typing import List, Tuple
 
@@ -29,6 +30,17 @@ async def test_get_media(id: str, expected: List[Tuple[str, MediaType]]):
     async with get_reddit() as reddit:
         submission = await reddit.submission(id=id)
         assert get_media(submission) == SubmissionResult([SubmissionFile(*x) for x in expected], id)
+
+
+async def test_valid_url():
+    """ Tests that `get_media` function returns valid URLs """
+
+    async with get_reddit(), ClientSession() as reddit, session:
+        async for submission in reddit.subreddit('cute').hot(limit=100): 
+            for media in get_media(submission).media:
+                head = session.head(media.uri)
+                assert head.status_code == 200
+                assert head.content_type == media.type.content_type
 
 
 @pytest.mark.parametrize('id, expected', test_cases)

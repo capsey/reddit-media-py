@@ -23,15 +23,16 @@ class MediaType(Enum):
     gif = auto()
     mp4 = auto()
 
-    def assert_head(self, type: str):
+    @property
+    def content_type(self) -> str:
         if self == MediaType.jpg:
-            assert type == 'image/jpeg'
+            return 'image/jpeg'
         elif self == MediaType.png:
-            assert type == 'image/png'
+            return 'image/png'
         elif self == MediaType.gif:
-            assert type == 'image/gif'
+            return 'image/gif'
         elif self == MediaType.mp4:
-            assert type == 'video/mp4'
+            return 'video/mp4'
 
 
 @dataclass
@@ -45,7 +46,6 @@ class SubmissionFile:
     async def get_size(self):
         async with ClientSession() as session:
             head = await session.head(self.uri)
-            self.type.assert_head(head.content_type)
             self.size = head.content_length
 
 
