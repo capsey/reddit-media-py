@@ -40,7 +40,8 @@ from redditmedia import get_reddit, get_media, MediaType
 
 async def main():
   async with get_reddit(client_id='your-client-id', client_secret='your-client-secret') as reddit:
-    async for submission in reddit.subreddit('cute').hot(limit=10):  # First 10 submissions on r/cute
+    subreddit = await reddit.subreddit('cute')
+    async for submission in subreddit.hot(limit=10):  # First 10 submissions on r/cute
       for media in get_media(submission).media:
         if media.type in [MediaType.jpg, MediaType.png]:  # Print URL only if it's an image
           print(media.uri)
