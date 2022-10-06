@@ -4,7 +4,7 @@
 [![Supported Python versions Badge](https://img.shields.io/pypi/pyversions/reddit-media)](https://pypi.org/project/reddit-media/)
 [![PyPI package version Badge](https://img.shields.io/pypi/v/reddit-media)](https://pypi.org/project/reddit-media/)
 
-Gets media file URLs from Reddit submissions using [PRAW](https://github.com/praw-dev/praw) library and downloads it. Supports video and single or gallery images. Can be used both as standalone package and library for Python scripts.
+Gets media file URLs from Reddit submissions using [Async PRAW](https://github.com/praw-dev/asncpraw) library and downloads it. Supports video and single or gallery images. Can be used both as standalone package and library for Python scripts.
 
 ## How to install
 
@@ -28,21 +28,25 @@ Reddit API requires authentication for scripts that use it, so you will have to 
 
 ![Example](https://user-images.githubusercontent.com/46106832/166102158-c9df28c2-385e-4de9-a8db-c5e2831f2d3f.png)
 
-> **Note**: For details about authenticating, check out this page: [Authenticating via OAuth](https://praw.readthedocs.io/en/stable/getting_started/authentication.html)
+> **Note**: For details about authenticating, check out this page: [Authenticating via OAuth](https://asyncpraw.readthedocs.io/en/stable/getting_started/authentication.html)
 
 ## Using as a library
 
 If your Python script needs to get URLs of some Reddit submission, but you don't want to do it yourself, you can use this package to do it for you. Once you installed the package, you can just import it and use as any other library:
 
 ```python
+import asyncio
 from redditmedia import get_reddit, get_media, MediaType
 
-reddit = get_reddit(client_id='your-client-id', client_secret='your-client-secret')
+async def main():
+  async with get_reddit(client_id='your-client-id', client_secret='your-client-secret') as reddit:
+    subreddit = await reddit.subreddit('cute')
+    async for submission in subreddit.hot(limit=10):  # First 10 submissions on r/cute
+      for media in get_media(submission).media:
+        if media.type in [MediaType.jpg, MediaType.png]:  # Print URL only if it's an image
+          print(media.uri)
 
-for media_list in reddit.subreddit('cute').hot(limit=10)  # First 10 submissions on r/cute:
-  for media in get_media(submission):
-    if media.type in [MediaType.jpg, MediaType.png]:  # Print URL only if it's an image
-      print(media.uri)
+asyncio.run(main())
 ```
 
 ## Using as standalone program
@@ -84,4 +88,4 @@ And when using CLI tool, omit `-c` option:
 python -m redditmedia get [IDS OF SUBMISSIONS SEPARATED WITH SPACE]
 ```
 
-> **Note**: You can do more things using this file, which is outside of the topic of this page. For details about `praw.ini` file, check out documentation: [praw.ini Files](https://praw.readthedocs.io/en/stable/getting_started/configuration/prawini.html)
+> **Note**: You can do more things using this file, which is outside of the topic of this page. For details about `praw.ini` file, check out documentation: [praw.ini Files](https://asyncpraw.readthedocs.io/en/stable/getting_started/configuration/prawini.html)

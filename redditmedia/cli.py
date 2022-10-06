@@ -1,13 +1,30 @@
+import asyncio
 import click
-from click import Context, Choice, progressbar
-from praw.reddit import Submission  # type: ignore
-from redditmedia import get_reddit, get_media, download
-from typing import Iterable, Tuple
+from asyncpraw import Reddit  # type: ignore
+from asyncpraw.reddit import Submission  # type: ignore
+from tqdm import tqdm
+from click import Context, Choice
+from typing import Callable, Optional, Tuple
+from dataclasses import dataclass
+from . import get_reddit, get_media, download_async
+
+
+@dataclass
+class Params:
+    output: bool
+    separate: bool
+    path: str
+    credentials: Tuple[str, str]
+
+    def get_reddit(self) -> Reddit:
+        if self.credentials:
+            return get_reddit(client_id=self.credentials[0], client_secret=self.credentials[1])
+        return get_reddit()
 
 
 @click.group()
 @click.option('--output', '-o', is_flag=True, help='Print media URLs instead of downloading')
-@click.option('--separate', '-s', is_flag=True, help='Download media to separate folders for each submission')
+@click.option('--separate', is_flag=True, help='Download media to separate folders for each submission')
 @click.option('--path', '-p', default='./reddit-media-downloads', help='Path to folder for downloaded media')
 @click.option('--credentials', '-c', type=(str, str), help='Explicitly pass Reddit API credentials')
 @click.pass_context
@@ -19,56 +36,50 @@ def main(ctx: Context, output: bool, separate: bool, path: str, credentials: Tup
     https://github.com/capsey/reddit-media-py
     """
 
-    obj = ctx.obj = {}
-
-    obj['output'] = output
-    obj['separate'] = separate
-    obj['path'] = path.rstrip('\\/')
-    obj['credentials'] = {}
-
-    if credentials:
-        obj['credentials']['client_id'] = credentials[0]
-        obj['credentials']['client_secret'] = credentials[1]
-
-    obj['reddit'] = get_reddit(**obj['credentials'])
+    ctx.obj = Params(output, separate, path.rstrip('\\/'), credentials)
 
 
 @main.command()
 @click.argument('submission-ids', type=str, nargs=-1)
 @click.pass_obj
-def get(obj: dict, submission_ids: Tuple[str]):
+def get(params: Params, submission_ids: Tuple[str]):
     """ Download media from specified submissions """
 
-    submissions = (obj['reddit'].submission(x) for x in submission_ids)
-    process(submissions, len(submission_ids), obj['output'], obj['path'], obj['separate'])
+    async def fetch_submission(id: str, reddit: Reddit):
+        submission = await reddit.submission(id)
+        await process_submission(submission, params)
+
+    async def fetch_submissions():
+        async with params.get_reddit() as reddit:
+            await asyncio.gather(*(fetch_submission(x, reddit) for x in submission_ids))
+
+    asyncio.run(fetch_submissions())
 
 
 @main.command()
 @click.option('--limit', '-n', default=1, help='Maximum number of submissions to download')
 @click.argument('subreddit', type=str)
 @click.pass_obj
-def hot(obj: dict, subreddit: str, limit: int):
+def hot(params: Params, subreddit: str, limit: int):
     """ Download media of hot submissions in specified subreddit """
 
     if subreddit.startswith('r/'):
         subreddit = subreddit[2:]
 
-    submissions = obj['reddit'].subreddit(subreddit).hot(limit=limit)
-    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+    asyncio.run(fetch_subreddit(subreddit, lambda x: x.hot(limit=limit), params))
 
 
 @main.command()
 @click.option('--limit', '-n', default=1, help='Maximum number of submissions to download')
 @click.argument('subreddit', type=str)
 @click.pass_obj
-def new(obj: dict, subreddit: str, limit: int):
+def new(params: Params, subreddit: str, limit: int):
     """ Download media of new submissions in specified subreddit """
 
     if subreddit.startswith('r/'):
         subreddit = subreddit[2:]
 
-    submissions = obj['reddit'].subreddit(subreddit).hot(limit=limit)
-    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+    asyncio.run(fetch_subreddit(subreddit, lambda x: x.new(limit=limit), params))
 
 
 time_filters = ['all', 'day', 'hour', 'month', 'week', 'year']
@@ -79,24 +90,31 @@ time_filters = ['all', 'day', 'hour', 'month', 'week', 'year']
 @click.option('--time-filter', '-t', default=time_filters[0], type=Choice(time_filters, case_sensitive=False))
 @click.argument('subreddit', type=str)
 @click.pass_obj
-def top(obj: dict, subreddit: str, limit: int, time_filter: str):
+def top(params: Params, subreddit: str, limit: int, time_filter: str):
     """ Download media of top submissions in specified subreddit """
 
     if subreddit.startswith('r/'):
         subreddit = subreddit[2:]
 
-    submissions = obj['reddit'].subreddit(subreddit).top(limit=limit, time_filter=time_filter)
-    process(submissions, limit, obj['output'], obj['path'], obj['separate'])
+    asyncio.run(fetch_subreddit(subreddit, lambda x: x.top(limit=limit, time_filter=time_filter), params))
 
 
-def process(submissions: Iterable[Submission], length: int, output: bool, path: str, separate: bool):
-    """ Downloads or prints media files of given submissions """
+async def fetch_subreddit(subreddit: str, getter: Callable, params: Params):
+    async with params.get_reddit() as reddit:
+        with tqdm(desc='Downloading...', leave=False, total=0, unit='B', unit_scale=True, unit_divisor=1024) as bar:
+            coroutines = []
 
-    if not output:
-        with progressbar(submissions, label='Downloading...', length=length) as bar:
-            for submission in bar:
-                download(get_media(submission), submission.id, path, separate)
+            async for submission in getter(await reddit.subreddit(subreddit)):
+                coroutines.append(process_submission(submission, params, bar=bar))
+
+            await asyncio.gather(*coroutines)
+
+
+async def process_submission(submission: Submission, params: Params, bar: Optional[tqdm] = None):
+    result = get_media(submission)
+
+    if not params.output:
+        await download_async(result, params.path, params.separate, bar=bar)
     else:
-        for id in submissions:
-            for media in get_media(id):
-                click.echo(media.uri)
+        for media in result.media:
+            click.echo(media.uri)
