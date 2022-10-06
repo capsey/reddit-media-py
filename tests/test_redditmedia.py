@@ -40,7 +40,7 @@ async def test_valid_url():
             subreddit = await reddit.subreddit('cute')
             async for submission in subreddit.hot(limit=100): 
                 for media in get_media(submission).media:
-                    head = session.head(media.uri)
+                    head = await session.head(media.uri)
                     assert head.status_code == 200
                     assert head.content_type == media.type.content_type
 
