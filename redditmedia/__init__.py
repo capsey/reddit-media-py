@@ -33,6 +33,7 @@ class MediaType(Enum):
             return 'image/gif'
         elif self == MediaType.mp4:
             return 'video/mp4'
+        raise Exception('Invalid argument!')
 
 
 @dataclass
