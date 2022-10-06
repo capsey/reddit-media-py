@@ -38,7 +38,7 @@ async def test_valid_url():
     async with ClientSession() as session:
         async with get_reddit() as reddit:
             subreddit = await reddit.subreddit('cute')
-            async for submission in subreddit.hot(limit=100): 
+            async for submission in subreddit.hot(limit=100):
                 for media in get_media(submission).media:
                     head = await session.head(media.uri)
                     assert head.status == 200

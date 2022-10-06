@@ -148,7 +148,7 @@ async def download_file_async(
 
         if response.status != 200:
             raise Exception(response)
-        elif file.type.assert_head(response.content_type):
+        elif file.type.content_type != response.content_type:
             raise Exception('URL leads to file with type that does not match!')
 
         # Adding file size into progress bar
