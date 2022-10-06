@@ -35,12 +35,13 @@ async def test_get_media(id: str, expected: List[Tuple[str, MediaType]]):
 async def test_valid_url():
     """ Tests that `get_media` function returns valid URLs """
 
-    async with get_reddit(), ClientSession() as reddit, session:
-        async for submission in reddit.subreddit('cute').hot(limit=100): 
-            for media in get_media(submission).media:
-                head = session.head(media.uri)
-                assert head.status_code == 200
-                assert head.content_type == media.type.content_type
+    async with ClientSession() as session:
+        async with get_reddit() as reddit:
+            async for submission in reddit.subreddit('cute').hot(limit=100): 
+                for media in get_media(submission).media:
+                    head = session.head(media.uri)
+                    assert head.status_code == 200
+                    assert head.content_type == media.type.content_type
 
 
 @pytest.mark.parametrize('id, expected', test_cases)
